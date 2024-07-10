@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация в мессенджере</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<form id="signupForm" class="form">
+    {% csrf_token %}
+    <h4>Имя пользователя:</h4>
+    <input class="input" type="text" name="username" placeholder="nickname" required>
+    <h4>Почта Email:</h4>
+    <input class="input" type="email" name="email" placeholder="email@domain.com" required>
+    <h4>Пароль:</h4>
+    <input class="input" type="password" name="password" placeholder="**********" required>
+    <h4>Аватар:</h4>
+    <input class="input" type="file" name="avatar" placeholder="Аватар">
+    <button class="btn" type="submit">Регистрация</button>
+    <a href="{% url 'login_api' %}"><h4>Если есть аккаунт, авторизоваться</h4></a>
+</form>
+
+<script src="{% static 'js/signup.js' %}"></script>
+</body>
+</html>

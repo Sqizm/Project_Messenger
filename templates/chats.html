@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+<head>
+    <title>Мессенджер</title>
+    <link rel="stylesheet" href="{% static 'css/chats/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <!-- Боковая панель -->
+        <div class="sidebar">
+            <!-- Показываем аватарку и имя пользователя -->
+            <div class="profile-icon">
+                <img src="" alt="Профиль" class="avatar" id="avatar">
+                <span id="username"></span>
+            </div>
+
+            <button id="createChatButton" style="margin-bottom: 25px;">Создать групповой чат</button>
+
+            <!-- Показываем список групповых чатов и пользователей -->
+            <div id="chat-list"></div>
+            <div id="user-list"></div>
+        </div>
+
+        <!-- Основная информация -->
+        <div class="chat-area">
+            <!-- Область для отображения сообщений чата -->
+            <div class="message-container" id="message-container"></div>
+            <form id="message-form" class="chat-input-container">
+                {% csrf_token %}
+                <input type="text" id="message-input" class="chat-input" placeholder="Введите сообщение...">
+                <button type="submit" id="send-button" class="chat-send-btn">Отправить</button>
+            </form>
+        </div>
+
+        <!-- Модальное окно кнопки "Создать групповой чат" -->
+        <div id="createChatModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <form id="createChatForm" class="form">
+                    {% csrf_token %}
+                    <h4>Название группы:</h4>
+                    <input class="input" type="text" name="name" placeholder="название группы" required><br>
+                    <h4>Аватар:</h4>
+                    <input class="input" type="file" name="avatar" placeholder="Аватар">
+                    <input class="input" type="hidden" name="creator" value="{{ request.user.id }}">
+                    <button class="btn" type="submit">Создать группу</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Модальное окно кнопки "U" -->
+        <div id="updateChatModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h4>Название группы:</h4>
+                <input type="text" id="chatNameInput" placeholder="название группы" />
+                <h4>Аватар:</h4>
+                <input type="file" id="chatAvatarInput" accept="image/*" />
+                <button id="updateChatSubmit">Применить</button>
+            </div>
+        </div>
+
+        <!-- Модальное окно пользователя -->
+        <div id="updateUserModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h4>Имя пользователя:</h4>
+                <input type="text" id="UserNameInput" placeholder="имя пользователя" />
+                <h4>Аватар:</h4>
+                <input type="file" id="UserAvatarInput" accept="image/*" />
+                <button id="updateUserSubmit">Применить</button>
+            </div>
+        </div>
+
+    </div>
+    <!-- Загрузка js-скриптов -->
+    <script>
+        // Передаем идентификатор текущего пользователя из Django в JavaScript. Нужен для функции connectToWebSocketChannel
+        const currentUserId = '{{ request.user.id }}';
+    </script>
+    <script src="{% static 'js/chats/showList.js' %}"></script>
+    <script src="{% static 'js/chats/create_chats.js' %}"></script>
+    <script src="{% static 'js/userProfile.js' %}"></script>
+</body>
+</html>

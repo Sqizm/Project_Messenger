@@ -1,0 +1,131 @@
+/* Стили для разделения интерфейса на блоки */
+.container {
+    display: flex;
+}
+
+.sidebar {
+    background-color: #646089;
+    padding: 20px;
+    width: 200px;
+    border-radius: 8px;
+    height: 850px; /*  высоту сайдбара */
+    overflow-y: auto; /* добавляет вертикальный скролл при необходимости */
+}
+
+.chat-area {
+    position: fixed;
+    left: 230px; /* ширина сайдбара + отступ */
+    right: 0;
+    top: 0;
+    bottom: 0;
+    padding: 20px;
+    overflow-y: auto; /* добавляет вертикальный скролл при необходимости */
+}
+
+/* Стиль для формы отправки сообщения */
+.chat-input-container {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-top: 1px solid #e0e0e0;
+}
+
+.chat-input {
+    flex-grow: 1;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+}
+
+.chat-send-btn {
+    margin-left: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.chat-send-btn:hover {
+    background-color: #0056b3;
+}
+
+/* Стили для элементов интерфейса */
+.chat-list, .user-list {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.chat-name, .user-name {
+    flex-grow: 1;
+    text-align: center;
+    color: white;
+    -webkit-text-stroke: 0.15px black;
+}
+
+.profile-icon {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 25px;
+    color: white;
+}
+
+.message-container {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+}
+
+/* Модальное окно */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 30%;
+    border-radius: 8px;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
