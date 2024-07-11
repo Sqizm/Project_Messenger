@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from rest_framework import viewsets, generics
 from rest_framework import permissions
 from rest_framework.response import Response
@@ -105,6 +105,11 @@ class SignInUserView(APIView):  # viewsets.GenericViewSet
             return Response({'message': 'Успешный вход', 'redirect_url': '/chats/'}, status=HTTP_200_OK)
         else:
             return Response({'error': 'Неверное имя пользователя или пароль'}, status=HTTP_401_UNAUTHORIZED)
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('login_api')
 
 
 class UserViewAll(viewsets.ViewSet):
