@@ -1,4 +1,7 @@
 let currentSocket = null;
+let currentSocketUser = null; // Для сохранения ссылки на текущее соединение при отправки сообщений между пользователями.
+let currentSelectedUser = null; // Переменная для хранения текущего выбранного пользователя.
+let userSockets = {};
 
 // Функция показа списка групповых чатов
 const fetchChats = async () => {
@@ -123,61 +126,7 @@ const fetchChats = async () => {
             chatContainer.addEventListener('click', () => {
                 // Подключение к веб-сокету с использованием chat_id, получаем при клике.
                 const chat_id = chatContainer.dataset.chatId;
-                const socket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${chat_id}/`);
-
-                // Сохранить ссылку на веб-сокет-соединение в элементе чата
-                chatContainer.dataset.socket = socket;
-
-                // Сохранить текущее веб-сокет-соединение в глобальную переменную
-                currentSocket = socket;
-
-                // Сохранить идентификатор чата в веб-сокет-соединении
-                currentSocket.chatId = chat_id;
-
-                // Очистка приветственного сообщения
-                const welcomeMessageContainer = document.getElementById('message-container');
-                welcomeMessageContainer.innerHTML = '';
-
-                // Приветственное сообщение.
-                const firstMessageDiv = document.createElement('div');
-
-                const chatName = document.createElement('strong');
-                chatName.textContent = chat.name + ': ';
-
-                const creatorName = document.createElement('p');
-                creatorName.textContent = `Добро пожаловать в чат! Создатель этого чата: ${chat.creator_username}`;
-
-                firstMessageDiv.appendChild(chatName);
-                firstMessageDiv.appendChild(creatorName);
-                welcomeMessageContainer.appendChild(firstMessageDiv);
-
-                // Очистка существующих обработчиков onmessage
-                if (currentSocket.onmessage) {
-                    currentSocket.removeEventListener('message', currentSocket.onmessage);
-                }
-
-                // Установка обработчика сообщения от сервера
-                currentSocket.onmessage = (event) => {
-                    const { message, chatId, participant } = JSON.parse(event.data);
-                    console.log(`Received message: ${message} for chatId: ${chatId}`);
-
-                    // Здесь вы можете добавить код для отображения сообщения на странице
-                    const chatMessagesContainer = document.getElementById('message-container');
-
-                    const newMessageContainer = document.createElement('div');
-                    newMessageContainer.classList.add('message-container');
-
-                    const userParticipant = document.createElement('strong');
-                    userParticipant.textContent = participant.username + ': ';
-
-                    const userMessage = document.createElement('p');
-                    userMessage.textContent = message;
-
-                    newMessageContainer.appendChild(userParticipant);
-                    newMessageContainer.appendChild(userMessage);
-
-                    chatMessagesContainer.appendChild(newMessageContainer);
-                };
+                switchToChat(chat_id, chat);
             });
         });
     } catch (error) {
@@ -186,23 +135,124 @@ const fetchChats = async () => {
 };
 fetchChats(); // Вызов
 
-// Обработка сообщений в групповых чатов.
-document.getElementById('message-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const messageInput = document.getElementById('message-input').value;
+const messageForm = document.getElementById('message-form');
 
-    // Использовать сохраненное веб-сокет-соединение
-    if (currentSocket) {
-        const payload = {
-            'message': messageInput,
-            'chatId': currentSocket.chatId,
-        };
-        console.log('Sending payload:', payload);
-        currentSocket.send(JSON.stringify(payload));
+messageForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
+
+    if (message) {
+        if (currentSocketUser) {
+            currentSocketUser.send(JSON.stringify({ type: 'chat_message', message, sender_id: currentUserId, receiver_id: currentSelectedUser, room_name: `chat_room_${currentUserId}_${currentSelectedUser}` }))
+        } else if (userSockets[currentUserId]) {
+            userSockets[currentUserId].send(JSON.stringify({ message, chatId: currentChatId }));
+        } else {
+            alert('Невозможно отправить сообщение, нет активного соединения.');
+        }
+        messageInput.value = '';
     } else {
-        console.log('Активный элемент группового чата не найден! Перейдите в какой-либо чат!');
+        alert('Невозможно отправить пустое сообщение!');
     }
 });
+
+const connectToWebSocketChannelChats = (chat_id, chat) => {
+    currentChatId = chat_id;
+    const socket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${chat_id}/`);
+    userSockets[currentUserId] = socket;
+
+    socket.onerror = (event) => {
+        console.log('WebSocket ошибка: ', event);
+    };
+
+    socket.onclose = () => {
+        // Обнуляем текущее соединение, чтобы можно было открыть новое
+        currentSocket = null;
+        // Удаляем сокет из объекта userSockets
+        userSockets[currentUserId];
+    }
+
+    // Очистка приветственного сообщения
+    const welcomeMessageContainer = document.getElementById('message-container');
+    welcomeMessageContainer.innerHTML = '';
+
+    // Приветственное сообщение.
+    const firstMessageDiv = document.createElement('div');
+
+    const chatName = document.createElement('strong');
+    chatName.textContent = chat.name + ': ';
+
+    const creatorName = document.createElement('p');
+    creatorName.textContent = `Добро пожаловать в чат! Создатель этого чата: ${chat.creator_username}`;
+
+    firstMessageDiv.appendChild(chatName);
+    firstMessageDiv.appendChild(creatorName);
+    welcomeMessageContainer.appendChild(firstMessageDiv);
+
+    // Отображаем полученное сообщение
+    socket.onmessage = async event => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'history') {
+            const messageHistory = data.messages;
+            const chatMessagesContainer = document.getElementById('message-container');
+            messageHistory.forEach(message => {
+                const newMessageContainer = document.createElement('div');
+                newMessageContainer.classList.add('message-container');
+
+                const userParticipant = document.createElement('strong');
+                userParticipant.textContent = message.author.username + ': ';
+
+                const userMessage = document.createElement('p');
+                userMessage.textContent = message.text;
+
+                newMessageContainer.appendChild(userParticipant);
+                newMessageContainer.appendChild(userMessage);
+
+                chatMessagesContainer.appendChild(newMessageContainer);
+            });
+        } else {
+            const participant = data.participant
+            const message = data.message
+            const chatMessagesContainer = document.getElementById('message-container');
+
+            if (chatMessagesContainer) {
+                const newMessageContainer = document.createElement('div');
+                newMessageContainer.classList.add('message-container');
+
+                const userParticipant = document.createElement('strong');
+                userParticipant.textContent = participant.username + ': ';
+
+                const userMessage = document.createElement('p');
+                userMessage.textContent = message;
+
+                newMessageContainer.appendChild(userParticipant);
+                newMessageContainer.appendChild(userMessage);
+
+                chatMessagesContainer.appendChild(newMessageContainer);
+            }
+        }
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.close();
+        }
+    });
+    return socket;
+};
+
+function switchToChat(chat_id, participant, chat) {
+    if (currentSocketUser) {
+        // Закрываем текущее соединение с пользователем, если пользователь решил перейти в групповой чат.
+        currentSocketUser.close();
+    }
+
+    if (userSockets[currentUserId]) {
+        userSockets[currentUserId].close();
+    }
+    connectToWebSocketChannelChats(chat_id, participant, chat);
+}
 
 // Функция показа списка пользователей в sidebar'е
 const getUser = async () => {
@@ -230,9 +280,28 @@ const getUser = async () => {
             userList.appendChild(listItem);
 
             // Добавление обработчика события клика. Делаем пользователей в списке кликабельными с переходом на переписку.
-            userContainer.addEventListener('click', (event) => {
-                // Подключение к WebSocket-каналу
-                connectToWebSocketChannel(currentUserId, user.id);
+            userContainer.addEventListener('click', async (event) => {
+                if (userSockets[currentUserId]) {
+                    // Закрываем текущее соединение с чатом, если пользователь решил перейти к диалогу с другим пользователем.
+                    userSockets[currentUserId].close();
+                }
+
+                if (currentSelectedUser === user.id) {
+                    alert('Пользователь для диалога уже выбран! Начинай писать сообщения в форму!');
+                    return;
+                }
+
+                if (currentSocketUser) {
+                    // Закрываем текущее соединение, если оно есть
+                    currentSocketUser.close();
+                }
+
+                // Устанавливаем нового выбранного пользователя
+                currentSelectedUser = user.id;
+
+                // Устанавливаем новое соединение с выбранным пользователем
+                currentSocketUser = await connectToWebSocketChannel(currentUserId, user.id);
+                fetchMessageHistory(currentSocketUser, currentUserId, user.id);
             });
         });
     } catch (error) {
@@ -240,46 +309,86 @@ const getUser = async () => {
     }
 }
 
+// Функция загрузки истории сообщений между двумя пользователями.
+const fetchMessageHistory = (socket, user1Id, user2Id) => {
+    const message = {
+        action: 'fetch_message_history',
+        user1_id: user1Id,
+        user2_id: user2Id
+    };
+
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(message));
+    } else {
+        socket.onopen = function () {
+            socket.send(JSON.stringify(message));
+        };
+    }
+};
+
 // Функция установки соединения между пользователями, отправки и получения сообщений.
-const connectToWebSocketChannel = (user1Id, user2Id) => {
+const connectToWebSocketChannel = async (user1Id, user2Id) => {
     const socket = new WebSocket(`ws://127.0.0.1:8000/ws/customuser/${user1Id}/${user2Id}/`);
 
-    // Отправляем сообщение
-    socket.onopen = () => {
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
-
-        sendButton.addEventListener('click', () => {
-            const message = messageInput.value;
-            socket.send(JSON.stringify({ message, sender_id: user1Id, receiver_id: user2Id }));
-            messageInput.value = '';
-        });
+    socket.onerror = (event) => {
+        console.log('WebSocket ошибка: ', event);
     };
+
+    socket.onclose = () => {
+        // Обнуляем текущее соединение, чтобы можно было открыть новое
+//        currentSocketUser = null;
+//        currentSelectedUser = null;
+    }
 
     // Отображаем полученное сообщение
     socket.onmessage = async event => {
-        const { message, sender_id, receiver_id } = JSON.parse(event.data);
-        console.log(`Received message: ${message} for chatId: ${sender_id}`);
+        const data = JSON.parse(event.data);
+        if (data.action === 'message_history') {
+            const messageHistory = data.data;
+            const chatMessagesContainer = document.getElementById('message-container');
+            chatMessagesContainer.innerHTML = ''; // Очищаем контейнер перед загрузкой новых сообщений
+            messageHistory.forEach(message => {
+                const newMessageContainer = document.createElement('div');
+                newMessageContainer.classList.add('message-container');
+                const userParticipant = document.createElement('strong');
+                userParticipant.textContent = `${message.author.username}: `;
+                const userMessage = document.createElement('p');
+                userMessage.textContent = message.text;
+                newMessageContainer.appendChild(userParticipant);
+                newMessageContainer.appendChild(userMessage);
+                chatMessagesContainer.appendChild(newMessageContainer);
+            });
+        } else {
+            const chatMessagesContainer = document.getElementById('message-container');
+            const newMessageContainer = document.createElement('div');
+            newMessageContainer.classList.add('message-container');
 
-        const chatMessagesContainer = document.getElementById('message-container');
+            const sender_id = data.sender_id;
+            const receiver_id = data.receiver_id;
+            const message = data.message;
 
-        const newMessageContainer = document.createElement('div');
-        newMessageContainer.classList.add('message-container');
+            const senderUser = await fetchUserById(sender_id); // Получаю username пользователя.
+            const receiverUser = await fetchUserById(receiver_id);
 
-        const senderUser = await fetchUserById(sender_id); // Получаю username пользователя.
-        const receiverUser = await fetchUserById(receiver_id);
+            const userParticipant = document.createElement('strong');
+            userParticipant.textContent = `${senderUser.username}: `; // Вывожу username пользователя.
 
-        const userParticipant = document.createElement('strong');
-        userParticipant.textContent = `${senderUser.username}: `; // Вывожу username пользователя.
+            const userMessage = document.createElement('p');
+            userMessage.textContent = message;
 
-        const userMessage = document.createElement('p');
-        userMessage.textContent = message;
+            newMessageContainer.appendChild(userParticipant);
+            newMessageContainer.appendChild(userMessage);
 
-        newMessageContainer.appendChild(userParticipant);
-        newMessageContainer.appendChild(userMessage);
+            chatMessagesContainer.appendChild(newMessageContainer);
+        }
+    };
 
-        chatMessagesContainer.appendChild(newMessageContainer);
-  };
+    window.addEventListener('beforeunload', () => {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.close();
+        }
+    });
+    return socket;
 };
 
 // Функция получения данных пользователя.
